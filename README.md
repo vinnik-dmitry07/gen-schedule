@@ -1,8 +1,8 @@
-#GenSchedule
+# GenSchedule
 
 Timetable scheduling using genetic algorithms.
 
-Steps:
+## Steps
 
 1. Fill:
     ```python
