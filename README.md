@@ -34,7 +34,9 @@ Timetable scheduling using genetic algorithms.
     }
     ```
 
-2. Receive:
+2. Run
+
+3. Receive:
     ```
     gen	nevals	avg    	std     	min   	max    
     0  	300   	2.91481	0.291041	1.7581	3.69857
