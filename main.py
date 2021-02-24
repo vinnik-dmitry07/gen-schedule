@@ -12,17 +12,6 @@ from deap import creator
 from deap import tools
 
 
-C1 = 1
-C2 = 1
-C3 = 1
-C4 = 0.1
-C5 = 1
-C6 = 1
-CLASSES_PER_DAY = 4
-WORKING_DAYS = 5
-PLACES = CLASSES_PER_DAY * WORKING_DAYS
-
-
 class Subject:
     def __init__(self, name, numbers):
         self.name = name
@@ -37,11 +26,6 @@ class SubjectType(Enum):
     SEMINAR = 1
 
 
-class Class(NamedTuple):
-    subject: Subject
-    type: SubjectType
-
-
 class WeekDay(Enum):
     MON = 0
     TUE = 1
@@ -52,6 +36,40 @@ class WeekDay(Enum):
     SUN = 6
 
 
+C1 = 1  # uniformity
+C2 = 1  # tightness
+C3 = 1  # suitability
+C4 = 0.1  # sleep
+C5 = 1  # day_grouping
+C6 = 1  # week_grouping
+
+CLASSES_PER_DAY = 4
+WORKING_DAYS = 5
+PLACES = CLASSES_PER_DAY * WORKING_DAYS
+
+SUBJECTS = [
+    Subject(name='AG', numbers={SubjectType.LECTURE: 1, SubjectType.SEMINAR: 2}),
+    Subject(name='MA', numbers={SubjectType.LECTURE: 2, SubjectType.SEMINAR: 2}),
+    Subject(name='PR', numbers={SubjectType.LECTURE: 1, SubjectType.SEMINAR: 1}),
+    Subject(name='EN', numbers={SubjectType.LECTURE: 0, SubjectType.SEMINAR: 3}),
+    Subject(name='DM', numbers={SubjectType.LECTURE: 1, SubjectType.SEMINAR: 1}),
+]
+
+SUITABLE_TIME = {
+    WeekDay.MON: {1: ['AG'], 2: [], 3: [], 4: []},
+    WeekDay.TUE: {1: ['MA'], 2: ['PR'], 3: ['PR'], 4: []},
+    WeekDay.WED: {1: ['AG'], 2: ['AG'], 3: ['MA'], 4: []},
+    WeekDay.THU: {1: ['DM'], 2: ['EN'], 3: ['MA', 'EN'], 4: []},
+    WeekDay.FRI: {1: ['MA'], 2: ['DM'], 3: [], 4: []}
+}
+
+
+class Class(NamedTuple):
+    subject: Subject
+    type: SubjectType
+
+
+# for better performance
 def diff(x):
     return [b - a for a, b in zip(x[:-1], x[1:])]
 
@@ -83,7 +101,7 @@ def construct_schedule(ordering, mapping):
     return [subjects_ordering[i:i + CLASSES_PER_DAY] for i in range(0, len(subjects_ordering), CLASSES_PER_DAY)]
 
 
-def eval_ordering(ordering, mapping, suitable_time, classes):
+def eval_ordering(ordering, classes, mapping):
     classes_num = len(mapping)
     schedule = construct_schedule(ordering, mapping)
     num_by_day = tuple(sum(s is not None for s in day) for day in schedule)
@@ -97,7 +115,7 @@ def eval_ordering(ordering, mapping, suitable_time, classes):
     ) / (PLACES - classes_num)
 
     suitability = sum(
-        class_.subject.name in suitable_time[week_day][class_num0 + 1]
+        class_.subject.name in SUITABLE_TIME[week_day][class_num0 + 1]
         for day, week_day in zip(schedule, WeekDay)
         for class_num0, class_ in enumerate(day)
         if class_ is not None
@@ -129,22 +147,9 @@ def eval_ordering(ordering, mapping, suitable_time, classes):
 
 
 def main():
-    subjects = [
-        Subject(name='AG', numbers={SubjectType.LECTURE: 1, SubjectType.SEMINAR: 2}),
-        Subject(name='MA', numbers={SubjectType.LECTURE: 2, SubjectType.SEMINAR: 2}),
-        Subject(name='PR', numbers={SubjectType.LECTURE: 1, SubjectType.SEMINAR: 1}),
-        Subject(name='EN', numbers={SubjectType.LECTURE: 0, SubjectType.SEMINAR: 3}),
-        Subject(name='DM', numbers={SubjectType.LECTURE: 1, SubjectType.SEMINAR: 1}),
-    ]
-    suitable_time = {WeekDay.MON: {1: ['AG'], 2: [], 3: [], 4: []},
-                     WeekDay.TUE: {1: ['MA'], 2: ['PR'], 3: ['PR'], 4: []},
-                     WeekDay.WED: {1: ['AG'], 2: ['AG'], 3: ['MA'], 4: []},
-                     WeekDay.THU: {1: ['DM'], 2: ['EN'], 3: ['MA', 'EN'], 4: []},
-                     WeekDay.FRI: {1: ['MA'], 2: ['DM'], 3: [], 4: []}}
-
-    lectures = [Class(subject, SubjectType.LECTURE) for subject in subjects
+    lectures = [Class(subject, SubjectType.LECTURE) for subject in SUBJECTS
                 for _ in range(subject.numbers[SubjectType.LECTURE])]
-    seminars = [Class(subject, SubjectType.SEMINAR) for subject in subjects
+    seminars = [Class(subject, SubjectType.SEMINAR) for subject in SUBJECTS
                 for _ in range(subject.numbers[SubjectType.SEMINAR])]
     classes = lectures + seminars
     mapping = {i: class_ for i, class_ in enumerate(classes)}
@@ -158,7 +163,7 @@ def main():
     toolbox.register('individual', tools.initIterate, creator.Individual, toolbox.indices)
     toolbox.register('population', tools.initRepeat, list, toolbox.individual)
 
-    toolbox.register('evaluate', lambda ordering: eval_ordering(ordering, mapping, suitable_time, classes))
+    toolbox.register('evaluate', lambda ordering: eval_ordering(ordering, classes, mapping))
     toolbox.register('mate', tools.cxOrdered)
     toolbox.register('mutate', tools.mutShuffleIndexes, indpb=0.01)
     toolbox.register('select', tools.selTournament, tournsize=3)
