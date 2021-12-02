@@ -1,4 +1,4 @@
-# GenSchedule
+# gen-schedule
 
 Timetable scheduling using genetic algorithms.
 
